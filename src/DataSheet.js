@@ -600,7 +600,7 @@ export default class DataSheet extends PureComponent {
 
   onRevert() {
     this._setState({ editing: {} });
-    this.dgDom && this.dgDom.focus();
+    this.dgDom && this.dgDom.focus({ preventScroll: true });
   }
 
   componentDidUpdate(prevProps, prevState) {
