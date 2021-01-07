@@ -1,15 +1,15 @@
 {
-  "name": "react-datasheet",
-  "version": "1.4.8",
+  "name": "@scalartech/react-datasheet",
+  "version": "1.0.0",
   "description": "Excel-like data grid for React",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nadbm/react-datasheet.git"
+    "url": "https://github.com/scalartech/react-datasheet.git"
   },
   "author": "Nadim Islam",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/nadbm/react-datasheet/issues"
+    "url": "https://github.com/scalartech/react-datasheet/issues"
   },
   "keywords": [
     "react-component",
