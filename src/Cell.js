@@ -22,21 +22,22 @@ export default class Cell extends PureComponent {
       ? attributesRenderer(cell, row, col)
       : {};
 
+    const Tag = this.props.virtualized ? 'div' : 'td';
+    const extra = Tag === 'td' ? { colSpan, rowSpan } : {};
     return (
-      <td
+      <Tag
         className={className}
         onMouseDown={onMouseDown}
         onMouseOver={onMouseOver}
         onDoubleClick={onDoubleClick}
         onTouchEnd={onDoubleClick}
         onContextMenu={onContextMenu}
-        colSpan={colSpan}
-        rowSpan={rowSpan}
         style={style}
+        {...extra}
         {...attributes}
       >
         {this.props.children}
-      </td>
+      </Tag>
     );
   }
 }
@@ -55,6 +56,7 @@ Cell.propTypes = {
   onContextMenu: PropTypes.func.isRequired,
   className: PropTypes.string,
   style: PropTypes.object,
+  virtualized: PropTypes.bool,
 };
 
 Cell.defaultProps = {

@@ -58,6 +58,9 @@ export default class DataSheet extends PureComponent {
       this,
     );
 
+    this.handleScroll = this.handleScroll.bind(this);
+    this.containerRef = React.createRef();
+
     this.defaultState = {
       start: {},
       end: {},
@@ -65,6 +68,7 @@ export default class DataSheet extends PureComponent {
       forceEdit: false,
       editing: {},
       clear: {},
+      scrollTop: 0,
     };
     this.state = this.defaultState;
 
@@ -633,6 +637,10 @@ export default class DataSheet extends PureComponent {
     return this.state.clear.i === i && this.state.clear.j === j;
   }
 
+  handleScroll(e) {
+    this.setState({ scrollTop: e.currentTarget.scrollTop });
+  }
+
   render() {
     const {
       sheetRenderer: SheetRenderer,
@@ -647,8 +655,111 @@ export default class DataSheet extends PureComponent {
       overflow,
       data,
       keyFn,
+      virtualized,
+      height,
+      rowHeight,
+      overscanCount,
+      listProps,
     } = this.props;
+
+    // Always use table-based renderers to preserve valid DOM
+    const EffectiveSheetRenderer = SheetRenderer;
+    const EffectiveRowRenderer = RowRenderer;
+    const EffectiveCellRenderer = cellRenderer; // always use default cell renderer
     const { forceEdit } = this.state;
+
+    const renderRowContent = (row, i) => (
+      <EffectiveRowRenderer key={keyFn ? keyFn(i) : i} row={i} cells={row}>
+        {row.map((cell, j) => {
+          const isEditing = this.isEditing(i, j);
+          return (
+            <DataCell
+              key={cell.key ? cell.key : `${i}-${j}`}
+              row={i}
+              col={j}
+              cell={cell}
+              forceEdit={false}
+              onMouseDown={this.onMouseDown}
+              onMouseOver={this.onMouseOver}
+              onDoubleClick={this.onDoubleClick}
+              onContextMenu={this.onContextMenu}
+              onChange={this.onChange}
+              onRevert={this.onRevert}
+              onNavigate={this.handleKeyboardCellMovement}
+              onKey={this.handleKey}
+              selected={this.isSelected(i, j)}
+              editing={isEditing}
+              clearing={this.isClearing(i, j)}
+              attributesRenderer={attributesRenderer}
+              cellRenderer={EffectiveCellRenderer}
+              valueRenderer={valueRenderer}
+              dataRenderer={dataRenderer}
+              valueViewer={valueViewer}
+              dataEditor={dataEditor}
+              {...(isEditing
+                ? {
+                    forceEdit,
+                  }
+                : {})}
+            />
+          );
+        })}
+      </EffectiveRowRenderer>
+    );
+
+    const renderRows = () => {
+      if (
+        virtualized &&
+        typeof height === 'number' &&
+        typeof rowHeight === 'number'
+      ) {
+        const total = data.length;
+        const cols = data[0] ? data[0].length : 0;
+        const scrollTop = this.state.scrollTop || 0;
+        const overscan = typeof overscanCount === 'number' ? overscanCount : 5;
+        const start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
+        const end = Math.min(
+          total - 1,
+          Math.floor((scrollTop + height) / rowHeight) + overscan,
+        );
+        const items = [];
+        const topPad = start * rowHeight;
+        const visibleCount = end >= start ? end - start + 1 : 0;
+        const bottomPad = Math.max(
+          0,
+          total * rowHeight - topPad - visibleCount * rowHeight,
+        );
+        if (topPad > 0) {
+          items.push(
+            <tr key="top-pad" style={{ height: topPad }}>
+              <td colSpan={cols}></td>
+            </tr>,
+          );
+        }
+        for (let i = start; i <= end; i++) {
+          items.push(renderRowContent(data[i], i));
+        }
+        if (bottomPad > 0) {
+          items.push(
+            <tr key="bottom-pad" style={{ height: bottomPad }}>
+              <td colSpan={cols}></td>
+            </tr>,
+          );
+        }
+        return items;
+      }
+      return data.map((row, i) => renderRowContent(row, i));
+    };
+
+    const tableContent = (
+      <EffectiveSheetRenderer
+        data={data}
+        className={['data-grid', className, overflow].filter(a => a).join(' ')}
+      >
+        {renderRows()}
+      </EffectiveSheetRenderer>
+    );
+
     return (
       <span
         ref={r => {
@@ -658,51 +769,17 @@ export default class DataSheet extends PureComponent {
         className="data-grid-container"
         onKeyDown={this.handleKey}
       >
-        <SheetRenderer
-          data={data}
-          className={['data-grid', className, overflow]
-            .filter(a => a)
-            .join(' ')}
-        >
-          {data.map((row, i) => (
-            <RowRenderer key={keyFn ? keyFn(i) : i} row={i} cells={row}>
-              {row.map((cell, j) => {
-                const isEditing = this.isEditing(i, j);
-                return (
-                  <DataCell
-                    key={cell.key ? cell.key : `${i}-${j}`}
-                    row={i}
-                    col={j}
-                    cell={cell}
-                    forceEdit={false}
-                    onMouseDown={this.onMouseDown}
-                    onMouseOver={this.onMouseOver}
-                    onDoubleClick={this.onDoubleClick}
-                    onContextMenu={this.onContextMenu}
-                    onChange={this.onChange}
-                    onRevert={this.onRevert}
-                    onNavigate={this.handleKeyboardCellMovement}
-                    onKey={this.handleKey}
-                    selected={this.isSelected(i, j)}
-                    editing={isEditing}
-                    clearing={this.isClearing(i, j)}
-                    attributesRenderer={attributesRenderer}
-                    cellRenderer={cellRenderer}
-                    valueRenderer={valueRenderer}
-                    dataRenderer={dataRenderer}
-                    valueViewer={valueViewer}
-                    dataEditor={dataEditor}
-                    {...(isEditing
-                      ? {
-                          forceEdit,
-                        }
-                      : {})}
-                  />
-                );
-              })}
-            </RowRenderer>
-          ))}
-        </SheetRenderer>
+        {virtualized && typeof height === 'number' ? (
+          <div
+            ref={this.containerRef}
+            style={{ height: height, width: '100%', overflowY: 'auto' }}
+            onScroll={this.handleScroll}
+          >
+            {tableContent}
+          </div>
+        ) : (
+          tableContent
+        )}
       </span>
     );
   }
@@ -739,6 +816,12 @@ DataSheet.propTypes = {
   attributesRenderer: PropTypes.func,
   keyFn: PropTypes.func,
   handleCopy: PropTypes.func,
+  // Virtualization options (react-window)
+  virtualized: PropTypes.bool,
+  height: PropTypes.number, // required when virtualized
+  rowHeight: PropTypes.number, // required when virtualized
+  overscanCount: PropTypes.number,
+  listProps: PropTypes.object,
 };
 
 DataSheet.defaultProps = {
@@ -747,4 +830,6 @@ DataSheet.defaultProps = {
   cellRenderer: Cell,
   valueViewer: ValueViewer,
   dataEditor: DataEditor,
+  virtualized: false,
+  overscanCount: 5,
 };

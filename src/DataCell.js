@@ -230,6 +230,7 @@ export default class DataCell extends PureComponent {
         onDoubleClick={this.handleDoubleClick}
         onContextMenu={this.handleContextMenu}
         onKeyUp={onKeyUp}
+        virtualized={this.props.virtualized}
       >
         {content}
       </CellRenderer>
@@ -260,6 +261,7 @@ DataCell.propTypes = {
   onChange: PropTypes.func.isRequired,
   onRevert: PropTypes.func.isRequired,
   onEdit: PropTypes.func,
+  virtualized: PropTypes.bool,
 };
 
 DataCell.defaultProps = {

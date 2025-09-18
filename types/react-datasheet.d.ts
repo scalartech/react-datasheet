@@ -79,6 +79,16 @@ declare namespace ReactDataSheet {
         keyFn?: (row: number) => string | number;
         /** Optional: Function that can decide whether navigating to the indicated cell is possible. */
         isCellNavigable?: (cell: T, row: number, col: number, jumpNext: boolean) => boolean;
+        /** Optional: Enable row virtualization using react-window's FixedSizeList. Default: false */
+        virtualized?: boolean;
+        /** Required when virtualized: The fixed pixel height of each row. */
+        rowHeight?: number;
+        /** Required when virtualized: The total pixel height available for the list viewport. */
+        height?: number;
+        /** Optional: Number of extra rows to render above and below the visible region. Default: 5 */
+        overscanCount?: number;
+        /** Optional: Additional props to spread to the FixedSizeList component. */
+        listProps?: any;
     }
 
     /** A function to process the raw clipboard data. It should return an array of arrays of strings. This is useful for when the clipboard may have data with irregular field or line delimiters. If not set, rows will be split with line breaks and cells with tabs. To wire it up pass your function to the parsePaste property of the ReactDataSheet component. */
