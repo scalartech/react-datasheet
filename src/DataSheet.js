@@ -816,7 +816,7 @@ DataSheet.propTypes = {
   attributesRenderer: PropTypes.func,
   keyFn: PropTypes.func,
   handleCopy: PropTypes.func,
-  // Virtualization options (react-window)
+  // Virtualization options
   virtualized: PropTypes.bool,
   height: PropTypes.number, // required when virtualized
   rowHeight: PropTypes.number, // required when virtualized

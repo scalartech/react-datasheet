@@ -397,14 +397,13 @@ a `dataEditor` for the entire sheet and/or for an individual cell.
 
 ## Virtualization (optional)
 
-For large datasets, you can enable row virtualization using react-window. This is opt-in and disabled by default.
+For large datasets, you can enable built-in row virtualization (no external dependency). This is opt-in and disabled by default.
 
 Props:
 - virtualized: boolean — enable virtualization when true.
 - height: number — the pixel height of the scrolling viewport.
 - rowHeight: number — the fixed pixel height for each row.
 - overscanCount?: number — how many extra rows to render above/below the visible area (default 5).
-- listProps?: object — extra props passed to react-window's FixedSizeList (e.g., innerElementType).
 
 Example:
 
@@ -418,5 +417,3 @@ Example:
   overscanCount={8}
 />
 ```
-
-Note: react-window is only required at runtime when virtualization is enabled. If you do not enable virtualization, the component behaves exactly as before.

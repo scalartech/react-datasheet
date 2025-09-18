@@ -79,7 +79,7 @@ declare namespace ReactDataSheet {
         keyFn?: (row: number) => string | number;
         /** Optional: Function that can decide whether navigating to the indicated cell is possible. */
         isCellNavigable?: (cell: T, row: number, col: number, jumpNext: boolean) => boolean;
-        /** Optional: Enable row virtualization using react-window's FixedSizeList. Default: false */
+        /** Optional: Enable built-in row virtualization (no external dependency). Default: false */
         virtualized?: boolean;
         /** Required when virtualized: The fixed pixel height of each row. */
         rowHeight?: number;
@@ -87,7 +87,7 @@ declare namespace ReactDataSheet {
         height?: number;
         /** Optional: Number of extra rows to render above and below the visible region. Default: 5 */
         overscanCount?: number;
-        /** Optional: Additional props to spread to the FixedSizeList component. */
+        /** Optional: Reserved for future virtualization configuration. */
         listProps?: any;
     }
 
