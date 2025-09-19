@@ -79,16 +79,22 @@ declare namespace ReactDataSheet {
         keyFn?: (row: number) => string | number;
         /** Optional: Function that can decide whether navigating to the indicated cell is possible. */
         isCellNavigable?: (cell: T, row: number, col: number, jumpNext: boolean) => boolean;
-        /** Optional: Enable built-in row virtualization (no external dependency). Default: false */
+        /** Optional: Enable built-in virtualization (no external dependency). Default: false */
         virtualized?: boolean;
-        /** Required when virtualized: The fixed pixel height of each row. */
+        /** Required when row-virtualized: The fixed pixel height of each row. */
         rowHeight?: number;
-        /** Required when virtualized: The total pixel height available for the list viewport. */
+        /** Required when row-virtualized: The total pixel height available for the list viewport. */
         height?: number;
         /** Optional: Number of extra rows to render above and below the visible region. Default: 5 */
         overscanCount?: number;
         /** Optional: Reserved for future virtualization configuration. */
         listProps?: any;
+        /** Required when column-virtualized: The total pixel width available for the viewport. */
+        width?: number;
+        /** Required when column-virtualized: The fixed pixel width of each column. */
+        columnWidth?: number;
+        /** Optional: Number of extra columns to render to the left and right of the visible region. If not provided, overscanCount is used. */
+        columnOverscanCount?: number;
     }
 
     /** A function to process the raw clipboard data. It should return an array of arrays of strings. This is useful for when the clipboard may have data with irregular field or line delimiters. If not set, rows will be split with line breaks and cells with tabs. To wire it up pass your function to the parsePaste property of the ReactDataSheet component. */
