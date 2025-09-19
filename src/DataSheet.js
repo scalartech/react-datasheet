@@ -44,6 +44,33 @@ const computeRowVirtualization = ({
   return { start, end, topPad, bottomPad, visibleCount };
 };
 
+// Helper to compute virtualization metrics for columns to keep render logic clean
+const computeColumnVirtualization = ({
+  totalCols,
+  columnWidth,
+  viewportWidth,
+  scrollLeft,
+  overscanCount,
+}) => {
+  const overscan = typeof overscanCount === 'number' ? overscanCount : 5;
+  const safeScrollLeft = scrollLeft || 0;
+  const start = Math.max(
+    0,
+    Math.floor(safeScrollLeft / columnWidth) - overscan,
+  );
+  const end = Math.min(
+    totalCols - 1,
+    Math.floor((safeScrollLeft + viewportWidth) / columnWidth) + overscan,
+  );
+  const visibleCount = end >= start ? end - start + 1 : 0;
+  const leftPad = start * columnWidth;
+  const rightPad = Math.max(
+    0,
+    totalCols * columnWidth - leftPad - visibleCount * columnWidth,
+  );
+  return { start, end, leftPad, rightPad, visibleCount };
+};
+
 const range = (start, end) => {
   const array = [];
   const inc = end - start > 0;
@@ -710,20 +737,22 @@ export default class DataSheet extends PureComponent {
     let leftPad = 0;
     let rightPad = 0;
     if (enableColVirtualization) {
-      startCol = Math.max(
-        0,
-        Math.floor(scrollLeft / columnWidth) - colOverscan,
-      );
-      endCol = Math.min(
-        totalCols - 1,
-        Math.floor((scrollLeft + width) / columnWidth) + colOverscan,
-      );
-      const visibleCount = endCol >= startCol ? endCol - startCol + 1 : 0;
-      leftPad = startCol * columnWidth;
-      rightPad = Math.max(
-        0,
-        totalCols * columnWidth - leftPad - visibleCount * columnWidth,
-      );
+      const {
+        start,
+        end,
+        leftPad: lp,
+        rightPad: rp,
+      } = computeColumnVirtualization({
+        totalCols,
+        columnWidth,
+        viewportWidth: width,
+        scrollLeft,
+        overscanCount: colOverscan,
+      });
+      startCol = start;
+      endCol = end;
+      leftPad = lp;
+      rightPad = rp;
     }
 
     const renderRowContent = (row, i) => (
