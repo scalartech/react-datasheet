@@ -20,6 +20,30 @@ import {
 
 const isEmpty = obj => Object.keys(obj).length === 0;
 
+// Helper to compute virtualization metrics for rows to keep renderRows clean
+const computeRowVirtualization = ({
+  totalRows,
+  rowHeight,
+  viewportHeight,
+  scrollTop,
+  overscanCount,
+}) => {
+  const overscan = typeof overscanCount === 'number' ? overscanCount : 5;
+  const safeScrollTop = scrollTop || 0;
+  const start = Math.max(0, Math.floor(safeScrollTop / rowHeight) - overscan);
+  const end = Math.min(
+    totalRows - 1,
+    Math.floor((safeScrollTop + viewportHeight) / rowHeight) + overscan,
+  );
+  const topPad = start * rowHeight;
+  const visibleCount = end >= start ? end - start + 1 : 0;
+  const bottomPad = Math.max(
+    0,
+    totalRows * rowHeight - topPad - visibleCount * rowHeight,
+  );
+  return { start, end, topPad, bottomPad, visibleCount };
+};
+
 const range = (start, end) => {
   const array = [];
   const inc = end - start > 0;
@@ -669,10 +693,6 @@ export default class DataSheet extends PureComponent {
       columnOverscanCount,
     } = this.props;
 
-    // Always use table-based renderers to preserve valid DOM
-    const EffectiveSheetRenderer = SheetRenderer;
-    const EffectiveRowRenderer = RowRenderer;
-    const EffectiveCellRenderer = cellRenderer; // always use default cell renderer
     const { forceEdit } = this.state;
 
     const totalCols = data[0] ? data[0].length : 0;
@@ -707,7 +727,7 @@ export default class DataSheet extends PureComponent {
     }
 
     const renderRowContent = (row, i) => (
-      <EffectiveRowRenderer key={keyFn ? keyFn(i) : i} row={i} cells={row}>
+      <RowRenderer key={keyFn ? keyFn(i) : i} row={i} cells={row}>
         {enableColVirtualization && leftPad > 0 ? (
           <td key={`lpad-${i}`} style={{ width: leftPad }} />
         ) : null}
@@ -734,7 +754,7 @@ export default class DataSheet extends PureComponent {
                 editing={isEditing}
                 clearing={this.isClearing(i, j)}
                 attributesRenderer={attributesRenderer}
-                cellRenderer={EffectiveCellRenderer}
+                cellRenderer={cellRenderer}
                 valueRenderer={valueRenderer}
                 dataRenderer={dataRenderer}
                 valueViewer={valueViewer}
@@ -751,7 +771,7 @@ export default class DataSheet extends PureComponent {
         {enableColVirtualization && rightPad > 0 ? (
           <td key={`rpad-${i}`} style={{ width: rightPad }} />
         ) : null}
-      </EffectiveRowRenderer>
+      </RowRenderer>
     );
 
     const renderRows = () => {
@@ -762,20 +782,14 @@ export default class DataSheet extends PureComponent {
       ) {
         const total = data.length;
         const cols = data[0] ? data[0].length : 0;
-        const scrollTop = this.state.scrollTop || 0;
-        const overscan = typeof overscanCount === 'number' ? overscanCount : 5;
-        const start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan);
-        const end = Math.min(
-          total - 1,
-          Math.floor((scrollTop + height) / rowHeight) + overscan,
-        );
+        const { start, end, topPad, bottomPad } = computeRowVirtualization({
+          totalRows: total,
+          rowHeight,
+          viewportHeight: height,
+          scrollTop: this.state.scrollTop,
+          overscanCount,
+        });
         const items = [];
-        const topPad = start * rowHeight;
-        const visibleCount = end >= start ? end - start + 1 : 0;
-        const bottomPad = Math.max(
-          0,
-          total * rowHeight - topPad - visibleCount * rowHeight,
-        );
         if (topPad > 0) {
           items.push(
             <tr key="top-pad" style={{ height: topPad }}>
@@ -799,12 +813,12 @@ export default class DataSheet extends PureComponent {
     };
 
     const tableContent = (
-      <EffectiveSheetRenderer
+      <SheetRenderer
         data={data}
         className={['data-grid', className, overflow].filter(a => a).join(' ')}
       >
         {renderRows()}
-      </EffectiveSheetRenderer>
+      </SheetRenderer>
     );
 
     return (
