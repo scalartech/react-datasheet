@@ -399,21 +399,27 @@ a `dataEditor` for the entire sheet and/or for an individual cell.
 
 For large datasets, you can enable built-in row virtualization (no external dependency). This is opt-in and disabled by default.
 
-Props:
-- virtualized: boolean — enable virtualization when true.
-- height: number — the pixel height of the scrolling viewport.
-- rowHeight: number — the fixed pixel height for each row.
-- overscanCount?: number — how many extra rows to render above/below the visible area (default 5).
 
+- `virtualization`: object containing virtualization options (see below):
+  - `height`: `number` — the pixel height of the scrolling viewport.
+  - `rowHeight`: `number` — the fixed pixel height for each row.
+  - `rowOverscanCount`: `number` — how many extra rows to render above/below the visible area .
+  - `columnWidth`: `number` — the fixed pixel width for each column .
+  - `width`: `number` — the pixel width of the entire sheet.
+  - `columnOverscanCount`: `number` — how many extra columns to render left/right of the visible area.
 Example:
 
 ```jsx
 <ReactDataSheet
   data={grid}
   valueRenderer={cell => cell.value}
-  virtualized
-  height={400}
-  rowHeight={32}
-  overscanCount={8}
+  virtualization={{
+    height:400,
+    rowHeight:32,
+    rowOverscanCount:8,
+    width: 1000,
+    columnWidth: 120,
+    columnOverscanCount: 2
+  }}
 />
 ```

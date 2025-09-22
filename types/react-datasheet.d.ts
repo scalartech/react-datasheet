@@ -86,12 +86,12 @@ declare namespace ReactDataSheet {
           /** Required when row-virtualized: The total pixel height available for the list viewport. */
           height: number;
           /** Optional: Number of extra rows to render above and below the visible region. Default: 5 */
-          overscanCount: number;
+          rowOverscanCount: number;
           /** Required when column-virtualized: The total pixel width available for the viewport. */
           width: number;
           /** Required when column-virtualized: The fixed pixel width of each column. */
           columnWidth: number;
-          /** Optional: Number of extra columns to render to the left and right of the visible region. If not provided, overscanCount is used. */
+          /** Optional: Number of extra columns to render to the left and right of the visible region. If not provided, rowOverscanCount is used. */
           columnOverscanCount: number;
         }
     }

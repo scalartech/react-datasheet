@@ -26,9 +26,9 @@ const computeRowVirtualization = ({
   rowHeight,
   viewportHeight,
   scrollTop,
-  overscanCount,
+  rowOverscanCount,
 }) => {
-  const overscan = typeof overscanCount === 'number' ? overscanCount : 5;
+  const overscan = typeof rowOverscanCount === 'number' ? rowOverscanCount : 5;
   const safeScrollTop = scrollTop || 0;
   const start = Math.max(0, Math.floor(safeScrollTop / rowHeight) - overscan);
   const end = Math.min(
@@ -50,9 +50,9 @@ const computeColumnVirtualization = ({
   columnWidth,
   viewportWidth,
   scrollLeft,
-  overscanCount,
+  rowOverscanCount,
 }) => {
-  const overscan = typeof overscanCount === 'number' ? overscanCount : 5;
+  const overscan = typeof rowOverscanCount === 'number' ? rowOverscanCount : 5;
   const safeScrollLeft = scrollLeft || 0;
   const start = Math.max(
     0,
@@ -717,7 +717,7 @@ export default class DataSheet extends PureComponent {
     const {
       height,
       rowHeight,
-      overscanCount,
+      rowOverscanCount,
       width,
       columnWidth,
       columnOverscanCount,
@@ -747,7 +747,7 @@ export default class DataSheet extends PureComponent {
     const colOverscan =
       typeof columnOverscanCount === 'number'
         ? columnOverscanCount
-        : overscanCount;
+        : rowOverscanCount;
     let startCol = 0;
     let endCol = totalCols - 1;
     let leftPad = 0;
@@ -763,7 +763,7 @@ export default class DataSheet extends PureComponent {
         columnWidth,
         viewportWidth: width,
         scrollLeft,
-        overscanCount: colOverscan,
+        rowOverscanCount: colOverscan,
       });
       startCol = start;
       endCol = end;
@@ -832,7 +832,7 @@ export default class DataSheet extends PureComponent {
           rowHeight,
           viewportHeight: height,
           scrollTop: this.state.scrollTop,
-          overscanCount,
+          rowOverscanCount,
         });
         const items = [];
         if (topPad > 0) {
@@ -935,7 +935,7 @@ DataSheet.propTypes = {
   virtualization: PropTypes.shape({
     height: PropTypes.number.isRequired,
     rowHeight: PropTypes.number.isRequired,
-    overscanCount: PropTypes.number.isRequired,
+    rowOverscanCount: PropTypes.number.isRequired,
     width: PropTypes.number.isRequired,
     columnWidth: PropTypes.number.isRequired,
     columnOverscanCount: PropTypes.number.isRequired,
