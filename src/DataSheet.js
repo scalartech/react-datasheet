@@ -110,10 +110,6 @@ export default class DataSheet extends PureComponent {
     );
 
     this.handleScroll = this.handleScroll.bind(this);
-    this.containerRef = null;
-    this.setContainerRef = node => {
-      this.containerRef = node;
-    };
 
     this.defaultState = {
       start: {},
@@ -881,7 +877,6 @@ export default class DataSheet extends PureComponent {
         {virtualized &&
         (typeof height === 'number' || typeof width === 'number') ? (
           <div
-            ref={this.setContainerRef}
             style={{
               height: typeof height === 'number' ? height : 'auto',
               width: typeof width === 'number' ? width : '100%',
