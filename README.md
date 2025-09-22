@@ -392,3 +392,34 @@ a `dataEditor` for the entire sheet and/or for an individual cell.
 | onKeyDown | func           | `function (event) {}` An event handler that you can call to use default React-DataSheet keyboard handling to signal reverting an ongoing edit (Escape key) or completing an edit (Enter or Tab). For most editors based on an `input` element this will probably work. However, if this keyboard handling is unsuitable for your editor you can trigger these changes explicitly using the `onCommit` and `onRevert` callbacks. |
 | onCommit  | func           | `function (newValue, [event]) {}` A callback to indicate that editing is over, here is the final value. If you pass a `KeyboardEvent` as the second argument, React-DataSheet will perform default navigation for you (for example, going down to the next row if you hit the enter key). You actually don't need to use `onCommit` if the default keyboard handling is good enough for you.                                    |
 | onRevert  | func           | `function () {}` A no-args callback that you can use to indicate that you want to cancel ongoing edits. As with `onCommit`, you don't need to worry about this if the default keyboard handling works for your editor.                                                                                                                                                                                                          |
+
+
+
+## Virtualization (optional)
+
+For large datasets, you can enable built-in row virtualization (no external dependency). This is opt-in and disabled by default.
+
+
+- `virtualization`: object containing virtualization options (see below):
+  - `height`: `number` — the pixel height of the scrolling viewport.
+  - `rowHeight`: `number` — the fixed pixel height for each row.
+  - `rowOverscanCount`: `number` — how many extra rows to render above/below the visible area .
+  - `columnWidth`: `number` — the fixed pixel width for each column .
+  - `width`: `number` — the pixel width of the entire sheet.
+  - `columnOverscanCount`: `number` — how many extra columns to render left/right of the visible area.
+Example:
+
+```jsx
+<ReactDataSheet
+  data={grid}
+  valueRenderer={cell => cell.value}
+  virtualization={{
+    height:400,
+    rowHeight:32,
+    rowOverscanCount:8,
+    width: 1000,
+    columnWidth: 120,
+    columnOverscanCount: 2
+  }}
+/>
+```

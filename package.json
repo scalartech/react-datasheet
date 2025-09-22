@@ -28,6 +28,7 @@
     "format": "prettier --write '{src,test}/**/*.js' --ignore-path docs,.gitignore",
     "format-test": "prettier-check '**/*.js'"
   },
+  "dependencies": {},
   "devDependencies": {
     "@types/react": "^16.0.38",
     "babel-cli": "^6.6.4",
