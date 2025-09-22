@@ -22,8 +22,31 @@ const triggerKeyDownEvent = (wrapper, keyCode, options = {}) => {
 };
 
 const triggerEvent = (node, keyCode) => {
-  node.dispatchEvent(new Event('focus'));
-  node.dispatchEvent(new KeyboardEvent('keydown', { keyCode }));
+  node.dispatchEvent(new window.Event('focus', { bubbles: true }));
+
+  let event;
+  if (typeof window.KeyboardEvent === 'function') {
+    event = new window.KeyboardEvent('keydown', {
+      keyCode,
+      which: keyCode,
+      bubbles: true,
+    });
+  } else {
+    event = document.createEvent('KeyboardEvent');
+    event.initKeyboardEvent(
+      'keydown',
+      true,
+      true,
+      window,
+      false,
+      false,
+      false,
+      false,
+      keyCode,
+      keyCode,
+    );
+  }
+  node.dispatchEvent(event);
 };
 
 const triggerMouseEvent = (node, eventType) => {
@@ -63,18 +86,14 @@ describe('Component', () => {
           />,
         );
 
-        expect(wrapper.html()).toEqual(
-          shallow(
-            <td
-              className="test cell"
-              colSpan={5}
-              rowSpan={4}
-              style={{ width: '200px' }}
-            >
-              <span className="value-viewer">5</span>
-            </td>,
-          ).html(),
-        );
+        const td = wrapper.dive().find('td').first();
+        expect(td.hasClass('test')).toBe(true);
+        expect(td.hasClass('cell')).toBe(true);
+        expect(td.prop('colSpan')).toBe(5);
+        expect(td.prop('rowSpan')).toBe(4);
+        expect(td.prop('style')).toEqual({ width: '200px' });
+        const valueViewer = td.find('ValueViewer').dive();
+        expect(valueViewer.text()).toBe('5');
 
         wrapper.simulate('mousedown');
         wrapper.simulate('doubleclick');
@@ -692,7 +711,7 @@ describe('Component', () => {
           expect(customWrapper.state('start')).toEqual({ i: 0, j: 1 });
           cell.find('.custom-component').first().simulate('doubleClick');
           triggerEvent(
-            customWrapper.find('.data-grid-container').node,
+            customWrapper.find('.data-grid-container').getDOMNode(),
             ENTER_KEY,
           );
           setTimeout(() => {
@@ -772,6 +791,8 @@ describe('Component', () => {
           editing: {},
           forceEdit: false,
           clear: {},
+          scrollLeft: 0,
+          scrollTop: 0,
         });
       });
     });
@@ -1138,6 +1159,8 @@ describe('Component', () => {
           selecting: true,
           editing: { i: 0, j: 0 },
           forceEdit: true,
+          scrollLeft: 0,
+          scrollTop: 0,
           clear: {},
         });
 
@@ -1159,6 +1182,8 @@ describe('Component', () => {
           selecting: true,
           editing: { i: 0, j: 0 },
           forceEdit: false,
+          scrollLeft: 0,
+          scrollTop: 0,
           clear: { i: 0, j: 0 },
         });
         wrapper.find('td.cell.selected input').node.value = 213;
@@ -1173,6 +1198,8 @@ describe('Component', () => {
           selecting: true,
           editing: {},
           forceEdit: false,
+          scrollLeft: 0,
+          scrollTop: 0,
           clear: { i: 0, j: 0 },
         });
       });
@@ -1190,6 +1217,8 @@ describe('Component', () => {
           selecting: true,
           editing: { i: 0, j: 0 },
           forceEdit: false,
+          scrollLeft: 0,
+          scrollTop: 0,
           clear: { i: 0, j: 0 },
         });
         cells.at(0).simulate('keyDown', { keyCode: RIGHT_KEY });
@@ -1199,6 +1228,8 @@ describe('Component', () => {
           selecting: true,
           editing: { i: 0, j: 0 },
           forceEdit: false,
+          scrollLeft: 0,
+          scrollTop: 0,
           clear: { i: 0, j: 0 },
         });
       });
@@ -1555,6 +1586,8 @@ describe('Component', () => {
           selecting: false,
           editing: {},
           forceEdit: false,
+          scrollLeft: 0,
+          scrollTop: 0,
           clear: {},
         });
       });
@@ -1575,6 +1608,8 @@ describe('Component', () => {
           selecting: true,
           editing: {},
           forceEdit: false,
+          scrollLeft: 0,
+          scrollTop: 0,
           clear: {},
         });
       });
