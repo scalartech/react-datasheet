@@ -1,4 +1,4 @@
-import React, { PureComponent } from 'react';
+import React, { PureComponent, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import Sheet from './Sheet';
 import Row from './Row';
@@ -710,15 +710,31 @@ export default class DataSheet extends PureComponent {
       overflow,
       data,
       keyFn,
-      virtualized,
+      virtualization,
+    } = this.props;
+
+    const virtualized = !!virtualization;
+    const {
       height,
       rowHeight,
       overscanCount,
-      listProps,
       width,
       columnWidth,
       columnOverscanCount,
-    } = this.props;
+    } = virtualization || {};
+
+    if (virtualization) {
+      if (rowHeight <= 0) {
+        throw new Error(
+          'Invalid virtualization: rowHeight Must be greater than 0. Please provide a positive rowHeight.',
+        );
+      }
+      if (columnWidth <= 0) {
+        throw new Error(
+          'Invalid virtualization: columnWidth Must be greater than 0. Please provide a positive columnWidth.',
+        );
+      }
+    }
 
     const { forceEdit } = this.state;
 
@@ -916,15 +932,14 @@ DataSheet.propTypes = {
   keyFn: PropTypes.func,
   handleCopy: PropTypes.func,
   // Virtualization options
-  virtualized: PropTypes.bool,
-  height: PropTypes.number, // required when virtualized rows
-  rowHeight: PropTypes.number, // required when virtualized rows
-  overscanCount: PropTypes.number,
-  listProps: PropTypes.object,
-  // Column virtualization options
-  width: PropTypes.number, // required when virtualized columns
-  columnWidth: PropTypes.number, // required when virtualized columns
-  columnOverscanCount: PropTypes.number,
+  virtualization: PropTypes.shape({
+    height: PropTypes.number.isRequired,
+    rowHeight: PropTypes.number.isRequired,
+    overscanCount: PropTypes.number.isRequired,
+    width: PropTypes.number.isRequired,
+    columnWidth: PropTypes.number.isRequired,
+    columnOverscanCount: PropTypes.number.isRequired,
+  }),
 };
 
 DataSheet.defaultProps = {
@@ -933,6 +948,4 @@ DataSheet.defaultProps = {
   cellRenderer: Cell,
   valueViewer: ValueViewer,
   dataEditor: DataEditor,
-  virtualized: false,
-  overscanCount: 5,
 };
