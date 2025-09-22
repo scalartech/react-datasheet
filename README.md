@@ -375,6 +375,7 @@ React-DataSheet will supply these properties:
 | col    | number | The current column index                   |
 | cell   | Object | The cell's raw data structure              |
 
+
 ### Data Editor
 
 The `dataEditor` displays your cell's data when in edit mode. You can can use
