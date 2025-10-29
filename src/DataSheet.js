@@ -1,4 +1,4 @@
-import React, { PureComponent, useEffect } from 'react';
+import React, { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import Sheet from './Sheet';
 import Row from './Row';
@@ -54,6 +54,11 @@ const computeColumnVirtualization = ({
 }) => {
   const overscan = typeof rowOverscanCount === 'number' ? rowOverscanCount : 5;
   const safeScrollLeft = scrollLeft || 0;
+  const vpWidth = viewportWidth || 0;
+
+  if (!totalCols || totalCols <= 0) {
+    return { start: 0, end: -1, leftPad: 0, rightPad: 0, visibleCount: 0 };
+  }
 
   // Build an array of widths for each column. columnWidths is required and may include zeros.
   const widths = Array.isArray(columnWidths)
@@ -86,7 +91,7 @@ const computeColumnVirtualization = ({
   };
 
   // Find last column whose left edge is before visibleRight
-  const visibleRight = safeScrollLeft + (viewportWidth || 0);
+  const visibleRight = safeScrollLeft + vpWidth;
   const findEnd = () => {
     let idx = totalCols - 1;
     while (idx >= 0 && prefix[idx] >= visibleRight) idx--;
@@ -130,7 +135,7 @@ export default class DataSheet extends PureComponent {
     this.onDoubleClick = this.onDoubleClick.bind(this);
     this.onContextMenu = this.onContextMenu.bind(this);
     this.handleNavigate = this.handleNavigate.bind(this);
-    this.handleKey = this.handleKey.bind(this).bind(this);
+    this.handleKey = this.handleKey.bind(this);
     this.handleCut = this.handleCut.bind(this);
     this.handleCopy = this.handleCopy.bind(this);
     this.handlePaste = this.handlePaste.bind(this);
@@ -160,6 +165,7 @@ export default class DataSheet extends PureComponent {
 
     this.removeAllListeners = this.removeAllListeners.bind(this);
     this.handleIEClipboardEvents = this.handleIEClipboardEvents.bind(this);
+    this.handleScroll = this.handleScroll.bind(this);
   }
 
   removeAllListeners() {
@@ -723,6 +729,29 @@ export default class DataSheet extends PureComponent {
     return this.state.clear.i === i && this.state.clear.j === j;
   }
 
+  handleScroll(e) {
+    const scrollTop = e.currentTarget.scrollTop;
+    let scrollLeft = e.currentTarget.scrollLeft;
+
+    const { virtualization } = this.props;
+    if (virtualization && Array.isArray(virtualization.columnWidths)) {
+      const totalWidth = virtualization.columnWidths.reduce(
+        (sum, width) => sum + width,
+        0,
+      );
+      const viewportWidth = virtualization.width;
+      const maxScrollLeft = Math.max(0, totalWidth - viewportWidth);
+      const clampedScrollLeft = Math.min(scrollLeft, maxScrollLeft);
+      if (clampedScrollLeft !== scrollLeft) {
+        requestAnimationFrame(() => {
+          e.currentTarget.scrollLeft = clampedScrollLeft;
+        });
+        scrollLeft = clampedScrollLeft;
+      }
+    }
+    this.setState({ scrollTop, scrollLeft });
+  }
+
   render() {
     const {
       sheetRenderer: SheetRenderer,
@@ -804,39 +833,6 @@ export default class DataSheet extends PureComponent {
       leftPad = lp;
       rightPad = rp;
     }
-    this.handleScroll = e => {
-      const scrollTop = e.currentTarget.scrollTop;
-      let scrollLeft = e.currentTarget.scrollLeft;
-
-      // For column virtualization, we need to ensure consistent scrolling behavior
-      const { virtualization } = this.props;
-      if (virtualization && Array.isArray(virtualization.columnWidths)) {
-        const totalWidth = virtualization.columnWidths.reduce(
-          (sum, width) => sum + width,
-          0,
-        );
-        const viewportWidth = virtualization.width;
-        const maxScrollLeft = Math.max(0, totalWidth - viewportWidth);
-
-        // Clamp scroll position to prevent over-scrolling issues
-        const clampedScrollLeft = Math.min(scrollLeft, maxScrollLeft);
-
-        if (clampedScrollLeft !== scrollLeft) {
-          // If we need to clamp, set it on the next frame to avoid recursion
-          requestAnimationFrame(() => {
-            e.currentTarget.scrollLeft = clampedScrollLeft;
-          });
-          // Use the clamped value for state but don't return early
-          scrollLeft = clampedScrollLeft;
-        }
-      }
-
-      // Always update state for both scrollTop and scrollLeft
-      this.setState({
-        scrollTop,
-        scrollLeft,
-      });
-    };
 
     const renderRowContent = (row, i) => (
       <RowRenderer key={keyFn ? keyFn(i) : i} row={i} cells={row}>
