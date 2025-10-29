@@ -47,27 +47,64 @@ const computeRowVirtualization = ({
 // Helper to compute virtualization metrics for columns to keep render logic clean
 const computeColumnVirtualization = ({
   totalCols,
-  columnWidth,
+  columnWidths,
   viewportWidth,
   scrollLeft,
   rowOverscanCount,
 }) => {
   const overscan = typeof rowOverscanCount === 'number' ? rowOverscanCount : 5;
   const safeScrollLeft = scrollLeft || 0;
-  const start = Math.max(
-    0,
-    Math.floor(safeScrollLeft / columnWidth) - overscan,
-  );
-  const end = Math.min(
-    totalCols - 1,
-    Math.floor((safeScrollLeft + viewportWidth) / columnWidth) + overscan,
-  );
+
+  // Build an array of widths for each column. columnWidths is required and may include zeros.
+  const widths = Array.isArray(columnWidths)
+    ? columnWidths
+        .slice(0, totalCols)
+        .concat(
+          Array(
+            Math.max(0, totalCols - (columnWidths ? columnWidths.length : 0)),
+          ).fill(0),
+        )
+    : Array(totalCols).fill(0);
+
+  // Prefix sums for quick range width lookups
+  const prefix = new Array(totalCols + 1);
+  prefix[0] = 0;
+  for (let i = 0; i < totalCols; i++) {
+    const w = Math.max(0, widths[i] || 0); // ensure non-negative, allow zero
+    prefix[i + 1] = prefix[i] + w;
+    widths[i] = w; // normalize
+  }
+
+  const totalWidth = prefix[totalCols];
+
+  // Find first column whose right edge exceeds safeScrollLeft
+  const findStart = () => {
+    // linear scan is fine for modest col counts; could binary search on prefix
+    let idx = 0;
+    while (idx < totalCols && prefix[idx + 1] <= safeScrollLeft) idx++;
+    return idx;
+  };
+
+  // Find last column whose left edge is before visibleRight
+  const visibleRight = safeScrollLeft + (viewportWidth || 0);
+  const findEnd = () => {
+    let idx = totalCols - 1;
+    while (idx >= 0 && prefix[idx] >= visibleRight) idx--;
+    return Math.max(0, idx);
+  };
+
+  let start = findStart();
+  let end = findEnd();
+
+  // Apply overscan on both sides
+  start = Math.max(0, start - overscan);
+  end = Math.min(totalCols - 1, end + overscan);
+
+  const leftPad = prefix[start];
+  const visibleSliceWidth = prefix[end + 1] - prefix[start];
+  const rightPad = Math.max(0, totalWidth - leftPad - visibleSliceWidth);
+
   const visibleCount = end >= start ? end - start + 1 : 0;
-  const leftPad = start * columnWidth;
-  const rightPad = Math.max(
-    0,
-    totalCols * columnWidth - leftPad - visibleCount * columnWidth,
-  );
   return { start, end, leftPad, rightPad, visibleCount };
 };
 
@@ -689,6 +726,14 @@ export default class DataSheet extends PureComponent {
   }
 
   handleScroll(e) {
+    const container = e.currentTarget;
+    console.log({
+      scrollLeft: container.scrollLeft,
+      scrollWidth: container.scrollWidth, // Total content width browser sees
+      clientWidth: container.clientWidth, // Viewport width
+      maxScroll: container.scrollWidth - container.clientWidth,
+    });
+
     this.setState({
       scrollTop: e.currentTarget.scrollTop,
       scrollLeft: e.currentTarget.scrollLeft,
@@ -718,7 +763,7 @@ export default class DataSheet extends PureComponent {
       rowHeight,
       rowOverscanCount,
       width,
-      columnWidth,
+      columnWidths,
       columnOverscanCount,
     } = virtualization || {};
 
@@ -728,9 +773,18 @@ export default class DataSheet extends PureComponent {
           'Invalid virtualization: rowHeight Must be greater than 0. Please provide a positive rowHeight.',
         );
       }
-      if (columnWidth <= 0) {
+      // Validate column virtualization inputs: columnWidths is now required when virtualization is provided
+      if (!Array.isArray(columnWidths)) {
         throw new Error(
-          'Invalid virtualization: columnWidth Must be greater than 0. Please provide a positive columnWidth.',
+          'Invalid virtualization: columnWidths is required and must be an array of non-negative numbers.',
+        );
+      }
+      const hasNegative = columnWidths.some(
+        w => typeof w !== 'number' || w < 0 || Number.isNaN(w),
+      );
+      if (hasNegative) {
+        throw new Error(
+          'Invalid virtualization: columnWidths must be an array of non-negative numbers.',
         );
       }
     }
@@ -739,9 +793,7 @@ export default class DataSheet extends PureComponent {
 
     const totalCols = data[0] ? data[0].length : 0;
     const enableColVirtualization =
-      virtualized &&
-      typeof width === 'number' &&
-      typeof columnWidth === 'number';
+      virtualized && typeof width === 'number' && Array.isArray(columnWidths);
     const scrollLeft = this.state.scrollLeft || 0;
     const colOverscan =
       typeof columnOverscanCount === 'number'
@@ -759,7 +811,7 @@ export default class DataSheet extends PureComponent {
         rightPad: rp,
       } = computeColumnVirtualization({
         totalCols,
-        columnWidth,
+        columnWidths,
         viewportWidth: width,
         scrollLeft,
         rowOverscanCount: colOverscan,
@@ -769,16 +821,53 @@ export default class DataSheet extends PureComponent {
       leftPad = lp;
       rightPad = rp;
     }
+    this.handleScroll = e => {
+      const scrollTop = e.currentTarget.scrollTop;
+      const scrollLeft = e.currentTarget.scrollLeft;
+
+      // For column virtualization, we need to ensure consistent scrolling behavior
+      const { virtualization } = this.props;
+      if (virtualization && Array.isArray(virtualization.columnWidths)) {
+        const totalWidth = virtualization.columnWidths.reduce(
+          (sum, width) => sum + width,
+          0,
+        );
+        const viewportWidth = virtualization.width;
+        const maxScrollLeft = Math.max(0, totalWidth - viewportWidth);
+
+        // Clamp scroll position to prevent over-scrolling issues
+        const clampedScrollLeft = Math.min(scrollLeft, maxScrollLeft);
+
+        if (clampedScrollLeft !== scrollLeft) {
+          // If we need to clamp, set it on the next frame to avoid recursion
+          requestAnimationFrame(() => {
+            e.currentTarget.scrollLeft = clampedScrollLeft;
+          });
+          return;
+        }
+      }
+
+      this.setState({
+        scrollTop,
+        scrollLeft,
+      });
+    };
 
     const renderRowContent = (row, i) => (
       <RowRenderer key={keyFn ? keyFn(i) : i} row={i} cells={row}>
         {enableColVirtualization && leftPad > 0 ? (
-          <td key={`lpad-${i}`} style={{ width: leftPad }} />
+          <td
+            key={`lpad-${i}`}
+            style={{ width: leftPad, minWidth: leftPad, maxWidth: leftPad }}
+          />
         ) : null}
         {(enableColVirtualization ? row.slice(startCol, endCol + 1) : row).map(
           (cell, jRel) => {
             const j = enableColVirtualization ? startCol + jRel : jRel;
             const isEditing = this.isEditing(i, j);
+            const cellWidth = enableColVirtualization
+              ? columnWidths[j]
+              : undefined;
             return (
               <DataCell
                 key={cell.key ? cell.key : `${i}-${j}`}
@@ -803,6 +892,15 @@ export default class DataSheet extends PureComponent {
                 dataRenderer={dataRenderer}
                 valueViewer={valueViewer}
                 dataEditor={dataEditor}
+                style={
+                  cellWidth
+                    ? {
+                        width: cellWidth,
+                        minWidth: cellWidth,
+                        maxWidth: cellWidth,
+                      }
+                    : undefined
+                }
                 {...(isEditing
                   ? {
                       forceEdit,
@@ -813,7 +911,10 @@ export default class DataSheet extends PureComponent {
           },
         )}
         {enableColVirtualization && rightPad > 0 ? (
-          <td key={`rpad-${i}`} style={{ width: rightPad }} />
+          <td
+            key={`rpad-${i}`}
+            style={{ width: rightPad, minWidth: rightPad, maxWidth: rightPad }}
+          />
         ) : null}
       </RowRenderer>
     );
@@ -856,6 +957,10 @@ export default class DataSheet extends PureComponent {
       return data.map((row, i) => renderRowContent(row, i));
     };
 
+    const totalContentWidth = enableColVirtualization
+      ? columnWidths.reduce((sum, width) => sum + width, 0)
+      : undefined;
+
     const tableContent = (
       <SheetRenderer
         data={data}
@@ -881,14 +986,31 @@ export default class DataSheet extends PureComponent {
               height: typeof height === 'number' ? height : 'auto',
               width: typeof width === 'number' ? width : '100%',
               overflowY: typeof height === 'number' ? 'auto' : 'hidden',
-              overflowX:
-                typeof width === 'number' && typeof columnWidth === 'number'
-                  ? 'auto'
-                  : 'hidden',
+              overflowX: typeof width === 'number' ? 'auto' : 'hidden',
+              position: 'relative',
             }}
             onScroll={this.handleScroll}
           >
-            {tableContent}
+            {enableColVirtualization ? (
+              <span>
+                {/* Invisible spacer that defines the total scrollable width */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: totalContentWidth,
+                    height: 1,
+                    pointerEvents: 'none',
+                    visibility: 'hidden',
+                  }}
+                />
+                {/* Actual table content */}
+                <div style={{ position: 'relative' }}>{tableContent}</div>
+              </span>
+            ) : (
+              tableContent
+            )}
           </div>
         ) : (
           tableContent
@@ -935,7 +1057,7 @@ DataSheet.propTypes = {
     rowHeight: PropTypes.number.isRequired,
     rowOverscanCount: PropTypes.number.isRequired,
     width: PropTypes.number.isRequired,
-    columnWidth: PropTypes.number.isRequired,
+    columnWidths: PropTypes.arrayOf(PropTypes.number).isRequired,
     columnOverscanCount: PropTypes.number.isRequired,
   }),
 };
