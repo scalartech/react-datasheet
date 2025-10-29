@@ -146,8 +146,6 @@ export default class DataSheet extends PureComponent {
       this,
     );
 
-    this.handleScroll = this.handleScroll.bind(this);
-
     this.defaultState = {
       start: {},
       end: {},
@@ -725,21 +723,6 @@ export default class DataSheet extends PureComponent {
     return this.state.clear.i === i && this.state.clear.j === j;
   }
 
-  handleScroll(e) {
-    const container = e.currentTarget;
-    console.log({
-      scrollLeft: container.scrollLeft,
-      scrollWidth: container.scrollWidth, // Total content width browser sees
-      clientWidth: container.clientWidth, // Viewport width
-      maxScroll: container.scrollWidth - container.clientWidth,
-    });
-
-    this.setState({
-      scrollTop: e.currentTarget.scrollTop,
-      scrollLeft: e.currentTarget.scrollLeft,
-    });
-  }
-
   render() {
     const {
       sheetRenderer: SheetRenderer,
@@ -823,7 +806,7 @@ export default class DataSheet extends PureComponent {
     }
     this.handleScroll = e => {
       const scrollTop = e.currentTarget.scrollTop;
-      const scrollLeft = e.currentTarget.scrollLeft;
+      let scrollLeft = e.currentTarget.scrollLeft;
 
       // For column virtualization, we need to ensure consistent scrolling behavior
       const { virtualization } = this.props;
@@ -843,10 +826,12 @@ export default class DataSheet extends PureComponent {
           requestAnimationFrame(() => {
             e.currentTarget.scrollLeft = clampedScrollLeft;
           });
-          return;
+          // Use the clamped value for state but don't return early
+          scrollLeft = clampedScrollLeft;
         }
       }
 
+      // Always update state for both scrollTop and scrollLeft
       this.setState({
         scrollTop,
         scrollLeft,
