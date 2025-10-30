@@ -89,8 +89,8 @@ declare namespace ReactDataSheet {
           rowOverscanCount: number;
           /** Required when column-virtualized: The total pixel width available for the viewport. */
           width: number;
-          /** Required when column-virtualized: The fixed pixel width of each column. */
-          columnWidth: number;
+          /** Required: Per-column widths used for column virtualization. Elements must be non-negative. Zero-width columns are supported. */
+          columnWidths: number[];
           /** Optional: Number of extra columns to render to the left and right of the visible region. If not provided, rowOverscanCount is used. */
           columnOverscanCount: number;
         }
