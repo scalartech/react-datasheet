@@ -21,6 +21,13 @@ import {
 const isEmpty = obj => Object.keys(obj).length === 0;
 
 // Helper to compute virtualization metrics for rows to keep renderRows clean
+// Returns an object with the following keys:
+// - start: Index of the first column to render (including overscan)
+// - end: Index of the last column to render (including overscan)
+// - leftPad: Width of invisible space before the first rendered column
+// - rightPad: Width of invisible space after the last rendered column
+// - visibleCount: Total number of columns being rendered (including overscan)
+
 const computeRowVirtualization = ({
   totalRows,
   rowHeight,
