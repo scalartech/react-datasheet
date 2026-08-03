@@ -20,6 +20,12 @@ import {
 
 const isEmpty = obj => Object.keys(obj).length === 0;
 
+const isNonNegativeInteger = value =>
+  typeof value === 'number' &&
+  Number.isFinite(value) &&
+  Number.isInteger(value) &&
+  value >= 0;
+
 // Helper to compute virtualization metrics for rows to keep renderRows clean
 // Returns an object with the following keys:
 // - start: Index of the first column to render (including overscan)
@@ -39,7 +45,7 @@ const computeRowVirtualization = ({
   const overscan = typeof rowOverscanCount === 'number' ? rowOverscanCount : 5;
   const safeScrollTop = scrollTop || 0;
   const pinnedRows = Math.min(
-    Math.max(0, pinnedRowCount || 0),
+    isNonNegativeInteger(pinnedRowCount) ? pinnedRowCount : 0,
     Math.max(0, totalRows),
   );
   const start = Math.max(
@@ -123,7 +129,7 @@ const computeColumnVirtualization = ({
   };
 
   const pinnedCols = Math.min(
-    Math.max(0, pinnedColumnCount || 0),
+    isNonNegativeInteger(pinnedColumnCount) ? pinnedColumnCount : 0,
     totalCols,
   );
 
@@ -842,6 +848,19 @@ export default class DataSheet extends PureComponent {
           'Invalid virtualization: columnWidths must be an array of non-negative numbers.',
         );
       }
+      if (pinnedRowCount != null && !isNonNegativeInteger(pinnedRowCount)) {
+        throw new Error(
+          'Invalid virtualization: pinnedRowCount must be a finite non-negative integer.',
+        );
+      }
+      if (
+        pinnedColumnCount != null &&
+        !isNonNegativeInteger(pinnedColumnCount)
+      ) {
+        throw new Error(
+          'Invalid virtualization: pinnedColumnCount must be a finite non-negative integer.',
+        );
+      }
     }
 
     const { forceEdit } = this.state;
@@ -885,16 +904,14 @@ export default class DataSheet extends PureComponent {
     }
 
     const pinnedRows = Math.min(
-      Math.max(0, pinnedRowCount || 0),
+      isNonNegativeInteger(pinnedRowCount) ? pinnedRowCount : 0,
       data.length,
     );
 
     const renderRowContent = (row, i) => {
       const renderCell = (cell, j) => {
         const isEditing = this.isEditing(i, j);
-        const cellWidth = enableColVirtualization
-          ? columnWidths[j]
-          : undefined;
+        const cellWidth = enableColVirtualization ? columnWidths[j] : undefined;
         const isPinnedRow = pinnedRows > 0 && i < pinnedRows;
         const isPinnedCol = pinnedCols > 0 && j < pinnedCols;
         const style = cellWidth
@@ -968,7 +985,11 @@ export default class DataSheet extends PureComponent {
           {enableColVirtualization && rightPad > 0 ? (
             <td
               key={`rpad-${i}`}
-              style={{ width: rightPad, minWidth: rightPad, maxWidth: rightPad }}
+              style={{
+                width: rightPad,
+                minWidth: rightPad,
+                maxWidth: rightPad,
+              }}
             />
           ) : null}
         </RowRenderer>
@@ -983,15 +1004,20 @@ export default class DataSheet extends PureComponent {
       ) {
         const total = data.length;
         const cols = data[0] ? data[0].length : 0;
-        const { start, end, topPad, bottomPad, pinnedRows: pr } =
-          computeRowVirtualization({
-            totalRows: total,
-            rowHeight,
-            viewportHeight: height,
-            scrollTop: this.state.scrollTop,
-            rowOverscanCount,
-            pinnedRowCount,
-          });
+        const {
+          start,
+          end,
+          topPad,
+          bottomPad,
+          pinnedRows: pr,
+        } = computeRowVirtualization({
+          totalRows: total,
+          rowHeight,
+          viewportHeight: height,
+          scrollTop: this.state.scrollTop,
+          rowOverscanCount,
+          pinnedRowCount,
+        });
         const items = [];
         for (let i = 0; i < pr; i++) {
           items.push(renderRowContent(data[i], i));
