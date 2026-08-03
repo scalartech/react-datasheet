@@ -923,7 +923,6 @@ export default class DataSheet extends PureComponent {
           : {};
         if (isPinnedRow || isPinnedCol) {
           style.position = 'sticky';
-          style.backgroundColor = '#fff';
           style.zIndex = isPinnedRow && isPinnedCol ? 3 : 2;
           if (isPinnedRow) style.top = i * rowHeight;
           if (isPinnedCol) style.left = colPrefix[j];

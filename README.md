@@ -409,6 +409,7 @@ For large datasets, you can enable built-in row virtualization (no external depe
   - `columnOverscanCount`: `number` — how many extra columns to render left/right of the visible area.
   - `pinnedRowCount`: `number` (optional) — always render the first N rows sticky at the top (e.g. headers).
   - `pinnedColumnCount`: `number` (optional) — always render the first M columns sticky on the left.
+  - Pinned cells use `position: sticky` but do not set a background; give header/pinned cells an opaque background via CSS or `attributesRenderer` so content does not show through while scrolling.
 Example:
 
 ```jsx
