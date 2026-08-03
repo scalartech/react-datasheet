@@ -214,6 +214,11 @@ export default class DataCell extends PureComponent {
       .filter(a => a)
       .join(' ');
 
+    const cellStyle = {
+      ...(widthStyle(cell) || {}),
+      ...(this.props.style || {}),
+    };
+
     return (
       <CellRenderer
         row={row}
@@ -224,7 +229,7 @@ export default class DataCell extends PureComponent {
         updated={updated}
         attributesRenderer={attributesRenderer}
         className={className}
-        style={widthStyle(cell)}
+        style={Object.keys(cellStyle).length ? cellStyle : null}
         onMouseDown={this.handleMouseDown}
         onMouseOver={this.handleMouseOver}
         onDoubleClick={this.handleDoubleClick}
@@ -262,6 +267,7 @@ DataCell.propTypes = {
   onRevert: PropTypes.func.isRequired,
   onEdit: PropTypes.func,
   virtualized: PropTypes.bool,
+  style: PropTypes.object,
 };
 
 DataCell.defaultProps = {

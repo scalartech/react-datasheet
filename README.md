@@ -407,6 +407,8 @@ For large datasets, you can enable built-in row virtualization (no external depe
   - `columnWidth`: `number` — the fixed pixel width for each column .
   - `width`: `number` — the pixel width of the entire sheet.
   - `columnOverscanCount`: `number` — how many extra columns to render left/right of the visible area.
+  - `pinnedRowCount`: `number` (optional) — always render the first N rows sticky at the top (e.g. headers).
+  - `pinnedColumnCount`: `number` (optional) — always render the first M columns sticky on the left.
 Example:
 
 ```jsx
