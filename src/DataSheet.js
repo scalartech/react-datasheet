@@ -829,7 +829,11 @@ export default class DataSheet extends PureComponent {
     } = virtualization || {};
 
     if (virtualization) {
-      if (rowHeight <= 0) {
+      if (
+        typeof rowHeight !== 'number' ||
+        !Number.isFinite(rowHeight) ||
+        rowHeight <= 0
+      ) {
         throw new Error(
           'Invalid virtualization: rowHeight Must be greater than 0. Please provide a positive rowHeight.',
         );
@@ -924,8 +928,14 @@ export default class DataSheet extends PureComponent {
         if (isPinnedRow || isPinnedCol) {
           style.position = 'sticky';
           style.zIndex = isPinnedRow && isPinnedCol ? 3 : 2;
-          if (isPinnedRow) style.top = i * rowHeight;
-          if (isPinnedCol) style.left = colPrefix[j];
+          if (
+            isPinnedRow &&
+            typeof rowHeight === 'number' &&
+            Number.isFinite(rowHeight)
+          ) {
+            style.top = i * rowHeight;
+          }
+          if (isPinnedCol && colPrefix) style.left = colPrefix[j];
         }
         return (
           <DataCell
