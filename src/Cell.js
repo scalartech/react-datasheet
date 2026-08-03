@@ -21,6 +21,21 @@ export default class Cell extends PureComponent {
     const attributes = attributesRenderer
       ? attributesRenderer(cell, row, col)
       : {};
+    const { style: attributeStyle, ...restAttributes } = attributes || {};
+
+    // attributesRenderer style can replace the style prop when spread after it;
+    // keep sticky pin offsets from the datasheet style so pinned cells stay pinned.
+    const composedStyle = {
+      ...(style || {}),
+      ...(attributeStyle || {}),
+      ...(style && style.position === 'sticky'
+        ? {
+            position: style.position,
+            ...(style.top != null ? { top: style.top } : {}),
+            ...(style.left != null ? { left: style.left } : {}),
+          }
+        : {}),
+    };
 
     const Tag = this.props.virtualized ? 'div' : 'td';
     const extra = Tag === 'td' ? { colSpan, rowSpan } : {};
@@ -32,9 +47,9 @@ export default class Cell extends PureComponent {
         onDoubleClick={onDoubleClick}
         onTouchEnd={onDoubleClick}
         onContextMenu={onContextMenu}
-        style={style}
+        style={Object.keys(composedStyle).length ? composedStyle : undefined}
         {...extra}
-        {...attributes}
+        {...restAttributes}
       >
         {this.props.children}
       </Tag>
