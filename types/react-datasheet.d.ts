@@ -93,6 +93,10 @@ declare namespace ReactDataSheet {
           columnWidths: number[];
           /** Optional: Number of extra columns to render to the left and right of the visible region. If not provided, rowOverscanCount is used. */
           columnOverscanCount: number;
+          /** Optional: Always render first N rows sticky at top. Must be a finite non-negative integer when set. */
+          pinnedRowCount?: number;
+          /** Optional: Always render first M columns sticky on left. Must be a finite non-negative integer when set. */
+          pinnedColumnCount?: number;
         }
     }
 

@@ -20,6 +20,12 @@ import {
 
 const isEmpty = obj => Object.keys(obj).length === 0;
 
+const isNonNegativeInteger = value =>
+  typeof value === 'number' &&
+  Number.isFinite(value) &&
+  Number.isInteger(value) &&
+  value >= 0;
+
 // Helper to compute virtualization metrics for rows to keep renderRows clean
 // Returns an object with the following keys:
 // - start: Index of the first column to render (including overscan)
@@ -34,21 +40,29 @@ const computeRowVirtualization = ({
   viewportHeight,
   scrollTop,
   rowOverscanCount,
+  pinnedRowCount,
 }) => {
   const overscan = typeof rowOverscanCount === 'number' ? rowOverscanCount : 5;
   const safeScrollTop = scrollTop || 0;
-  const start = Math.max(0, Math.floor(safeScrollTop / rowHeight) - overscan);
+  const pinnedRows = Math.min(
+    isNonNegativeInteger(pinnedRowCount) ? pinnedRowCount : 0,
+    Math.max(0, totalRows),
+  );
+  const start = Math.max(
+    pinnedRows,
+    Math.floor(safeScrollTop / rowHeight) - overscan,
+  );
   const end = Math.min(
     totalRows - 1,
     Math.floor((safeScrollTop + viewportHeight) / rowHeight) + overscan,
   );
-  const topPad = start * rowHeight;
+  const topPad = Math.max(0, (start - pinnedRows) * rowHeight);
   const visibleCount = end >= start ? end - start + 1 : 0;
   const bottomPad = Math.max(
     0,
-    totalRows * rowHeight - topPad - visibleCount * rowHeight,
+    (totalRows - pinnedRows) * rowHeight - topPad - visibleCount * rowHeight,
   );
-  return { start, end, topPad, bottomPad, visibleCount };
+  return { start, end, topPad, bottomPad, visibleCount, pinnedRows };
 };
 
 // Helper to compute virtualization metrics for columns to keep render logic clean
@@ -58,13 +72,22 @@ const computeColumnVirtualization = ({
   viewportWidth,
   scrollLeft,
   rowOverscanCount,
+  pinnedColumnCount,
 }) => {
   const overscan = typeof rowOverscanCount === 'number' ? rowOverscanCount : 5;
   const safeScrollLeft = scrollLeft || 0;
   const vpWidth = viewportWidth || 0;
 
   if (!totalCols || totalCols <= 0) {
-    return { start: 0, end: -1, leftPad: 0, rightPad: 0, visibleCount: 0 };
+    return {
+      start: 0,
+      end: -1,
+      leftPad: 0,
+      rightPad: 0,
+      visibleCount: 0,
+      pinnedCols: 0,
+      prefix: [0],
+    };
   }
 
   // Build an array of widths for each column. columnWidths is required and may include zeros.
@@ -105,19 +128,36 @@ const computeColumnVirtualization = ({
     return Math.max(0, idx);
   };
 
+  const pinnedCols = Math.min(
+    isNonNegativeInteger(pinnedColumnCount) ? pinnedColumnCount : 0,
+    totalCols,
+  );
+
   let start = findStart();
   let end = findEnd();
 
-  // Apply overscan on both sides
-  start = Math.max(0, start - overscan);
+  // Apply overscan on both sides; never virtualize pinned columns away
+  start = Math.max(pinnedCols, start - overscan);
   end = Math.min(totalCols - 1, end + overscan);
 
-  const leftPad = prefix[start];
-  const visibleSliceWidth = prefix[end + 1] - prefix[start];
-  const rightPad = Math.max(0, totalWidth - leftPad - visibleSliceWidth);
+  // Pad only the non-pinned scrolled-away span
+  const leftPad = Math.max(0, prefix[start] - prefix[pinnedCols]);
+  const visibleSliceWidth = end >= start ? prefix[end + 1] - prefix[start] : 0;
+  const rightPad = Math.max(
+    0,
+    totalWidth - prefix[pinnedCols] - leftPad - visibleSliceWidth,
+  );
 
   const visibleCount = end >= start ? end - start + 1 : 0;
-  return { start, end, leftPad, rightPad, visibleCount };
+  return {
+    start,
+    end,
+    leftPad,
+    rightPad,
+    visibleCount,
+    pinnedCols,
+    prefix,
+  };
 };
 
 const range = (start, end) => {
@@ -784,10 +824,16 @@ export default class DataSheet extends PureComponent {
       width,
       columnWidths,
       columnOverscanCount,
+      pinnedRowCount,
+      pinnedColumnCount,
     } = virtualization || {};
 
     if (virtualization) {
-      if (rowHeight <= 0) {
+      if (
+        typeof rowHeight !== 'number' ||
+        !Number.isFinite(rowHeight) ||
+        rowHeight <= 0
+      ) {
         throw new Error(
           'Invalid virtualization: rowHeight Must be greater than 0. Please provide a positive rowHeight.',
         );
@@ -806,6 +852,19 @@ export default class DataSheet extends PureComponent {
           'Invalid virtualization: columnWidths must be an array of non-negative numbers.',
         );
       }
+      if (pinnedRowCount != null && !isNonNegativeInteger(pinnedRowCount)) {
+        throw new Error(
+          'Invalid virtualization: pinnedRowCount must be a finite non-negative integer.',
+        );
+      }
+      if (
+        pinnedColumnCount != null &&
+        !isNonNegativeInteger(pinnedColumnCount)
+      ) {
+        throw new Error(
+          'Invalid virtualization: pinnedColumnCount must be a finite non-negative integer.',
+        );
+      }
     }
 
     const { forceEdit } = this.state;
@@ -822,90 +881,129 @@ export default class DataSheet extends PureComponent {
     let endCol = totalCols - 1;
     let leftPad = 0;
     let rightPad = 0;
+    let pinnedCols = 0;
+    let colPrefix = null;
     if (enableColVirtualization) {
       const {
         start,
         end,
         leftPad: lp,
         rightPad: rp,
+        pinnedCols: pc,
+        prefix,
       } = computeColumnVirtualization({
         totalCols,
         columnWidths,
         viewportWidth: width,
         scrollLeft,
         rowOverscanCount: colOverscan,
+        pinnedColumnCount,
       });
       startCol = start;
       endCol = end;
       leftPad = lp;
       rightPad = rp;
+      pinnedCols = pc;
+      colPrefix = prefix;
     }
 
-    const renderRowContent = (row, i) => (
-      <RowRenderer key={keyFn ? keyFn(i) : i} row={i} cells={row}>
-        {enableColVirtualization && leftPad > 0 ? (
-          <td
-            key={`lpad-${i}`}
-            style={{ width: leftPad, minWidth: leftPad, maxWidth: leftPad }}
-          />
-        ) : null}
-        {(enableColVirtualization ? row.slice(startCol, endCol + 1) : row).map(
-          (cell, jRel) => {
-            const j = enableColVirtualization ? startCol + jRel : jRel;
-            const isEditing = this.isEditing(i, j);
-            const cellWidth = enableColVirtualization
-              ? columnWidths[j]
-              : undefined;
-            return (
-              <DataCell
-                key={cell.key ? cell.key : `${i}-${j}`}
-                row={i}
-                col={j}
-                cell={cell}
-                forceEdit={false}
-                onMouseDown={this.onMouseDown}
-                onMouseOver={this.onMouseOver}
-                onDoubleClick={this.onDoubleClick}
-                onContextMenu={this.onContextMenu}
-                onChange={this.onChange}
-                onRevert={this.onRevert}
-                onNavigate={this.handleKeyboardCellMovement}
-                onKey={this.handleKey}
-                selected={this.isSelected(i, j)}
-                editing={isEditing}
-                clearing={this.isClearing(i, j)}
-                attributesRenderer={attributesRenderer}
-                cellRenderer={cellRenderer}
-                valueRenderer={valueRenderer}
-                dataRenderer={dataRenderer}
-                valueViewer={valueViewer}
-                dataEditor={dataEditor}
-                style={
-                  cellWidth
-                    ? {
-                        width: cellWidth,
-                        minWidth: cellWidth,
-                        maxWidth: cellWidth,
-                      }
-                    : undefined
-                }
-                {...(isEditing
-                  ? {
-                      forceEdit,
-                    }
-                  : {})}
-              />
-            );
-          },
-        )}
-        {enableColVirtualization && rightPad > 0 ? (
-          <td
-            key={`rpad-${i}`}
-            style={{ width: rightPad, minWidth: rightPad, maxWidth: rightPad }}
-          />
-        ) : null}
-      </RowRenderer>
+    const pinnedRows = Math.min(
+      isNonNegativeInteger(pinnedRowCount) ? pinnedRowCount : 0,
+      data.length,
     );
+
+    const renderRowContent = (row, i) => {
+      const renderCell = (cell, j) => {
+        const isEditing = this.isEditing(i, j);
+        const cellWidth = enableColVirtualization ? columnWidths[j] : undefined;
+        const isPinnedRow = pinnedRows > 0 && i < pinnedRows;
+        const isPinnedCol = pinnedCols > 0 && j < pinnedCols;
+        const style = cellWidth
+          ? {
+              width: cellWidth,
+              minWidth: cellWidth,
+              maxWidth: cellWidth,
+            }
+          : {};
+        if (isPinnedRow || isPinnedCol) {
+          style.position = 'sticky';
+          style.zIndex = isPinnedRow && isPinnedCol ? 3 : 2;
+          if (
+            isPinnedRow &&
+            typeof rowHeight === 'number' &&
+            Number.isFinite(rowHeight)
+          ) {
+            style.top = i * rowHeight;
+          }
+          if (isPinnedCol && colPrefix) style.left = colPrefix[j];
+        }
+        return (
+          <DataCell
+            key={cell.key ? cell.key : `${i}-${j}`}
+            row={i}
+            col={j}
+            cell={cell}
+            forceEdit={false}
+            onMouseDown={this.onMouseDown}
+            onMouseOver={this.onMouseOver}
+            onDoubleClick={this.onDoubleClick}
+            onContextMenu={this.onContextMenu}
+            onChange={this.onChange}
+            onRevert={this.onRevert}
+            onNavigate={this.handleKeyboardCellMovement}
+            onKey={this.handleKey}
+            selected={this.isSelected(i, j)}
+            editing={isEditing}
+            clearing={this.isClearing(i, j)}
+            attributesRenderer={attributesRenderer}
+            cellRenderer={cellRenderer}
+            valueRenderer={valueRenderer}
+            dataRenderer={dataRenderer}
+            valueViewer={valueViewer}
+            dataEditor={dataEditor}
+            style={Object.keys(style).length ? style : undefined}
+            {...(isEditing
+              ? {
+                  forceEdit,
+                }
+              : {})}
+          />
+        );
+      };
+
+      return (
+        <RowRenderer key={keyFn ? keyFn(i) : i} row={i} cells={row}>
+          {pinnedCols > 0
+            ? row.slice(0, pinnedCols).map((cell, j) => renderCell(cell, j))
+            : null}
+          {enableColVirtualization && leftPad > 0 ? (
+            <td
+              key={`lpad-${i}`}
+              style={{ width: leftPad, minWidth: leftPad, maxWidth: leftPad }}
+            />
+          ) : null}
+          {(enableColVirtualization
+            ? endCol >= startCol
+              ? row.slice(startCol, endCol + 1)
+              : []
+            : row
+          ).map((cell, jRel) => {
+            const j = enableColVirtualization ? startCol + jRel : jRel;
+            return renderCell(cell, j);
+          })}
+          {enableColVirtualization && rightPad > 0 ? (
+            <td
+              key={`rpad-${i}`}
+              style={{
+                width: rightPad,
+                minWidth: rightPad,
+                maxWidth: rightPad,
+              }}
+            />
+          ) : null}
+        </RowRenderer>
+      );
+    };
 
     const renderRows = () => {
       if (
@@ -915,14 +1013,24 @@ export default class DataSheet extends PureComponent {
       ) {
         const total = data.length;
         const cols = data[0] ? data[0].length : 0;
-        const { start, end, topPad, bottomPad } = computeRowVirtualization({
+        const {
+          start,
+          end,
+          topPad,
+          bottomPad,
+          pinnedRows: pr,
+        } = computeRowVirtualization({
           totalRows: total,
           rowHeight,
           viewportHeight: height,
           scrollTop: this.state.scrollTop,
           rowOverscanCount,
+          pinnedRowCount,
         });
         const items = [];
+        for (let i = 0; i < pr; i++) {
+          items.push(renderRowContent(data[i], i));
+        }
         if (topPad > 0) {
           items.push(
             <tr key="top-pad" style={{ height: topPad }}>
@@ -1047,6 +1155,8 @@ DataSheet.propTypes = {
     width: PropTypes.number.isRequired,
     columnWidths: PropTypes.arrayOf(PropTypes.number).isRequired,
     columnOverscanCount: PropTypes.number.isRequired,
+    pinnedRowCount: PropTypes.number,
+    pinnedColumnCount: PropTypes.number,
   }),
 };
 
