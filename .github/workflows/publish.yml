@@ -17,6 +17,10 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - run: npm ci
       - run: npm test
+      # Publish uses --ignore-scripts, and `prepublish` is deprecated and no
+      # longer runs on publish, so lib/ must be built explicitly here rather
+      # than trusting whatever happens to be committed.
+      - run: npm run build
       - name: Set package.json version from tag
         run: |
           TAG="${GITHUB_REF#refs/tags/v}"
