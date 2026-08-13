@@ -274,7 +274,11 @@ export default class DataSheet extends PureComponent {
     if (this.props.disablePageClick) return;
     const element = this.dgDom;
     if (!element.contains(e.target)) {
-      this.setState(this.defaultState);
+      this.setState({
+        ...this.defaultState,
+        scrollTop: this.state.scrollTop || 0,
+        scrollLeft: this.state.scrollLeft || 0,
+      });
       this.removeAllListeners();
     }
   }
