@@ -276,8 +276,8 @@ export default class DataSheet extends PureComponent {
     if (!element.contains(e.target)) {
       this.setState({
         ...this.defaultState,
-        scrollTop: this.state.scrollTop || 0,
-        scrollLeft: this.state.scrollLeft || 0,
+        scrollTop: this.state.scrollTop || this.defaultState.scrollTop,
+        scrollLeft: this.state.scrollLeft || this.defaultState.scrollLeft,
       });
       this.removeAllListeners();
     }
